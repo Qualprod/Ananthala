@@ -7,6 +7,7 @@ import connectDB from "@/lib/mongodb"
 import Order from "@/models/order"
 import Coupon from "@/models/Coupons"
 import { sendOrderConfirmationEmail } from "@/lib/email-service"
+import { sendOrderConfirmationWhatsApp } from "@/lib/whatsapp-service"
 import { withCountryCode } from "@/lib/phone"
 
 export const runtime = "nodejs"
@@ -323,6 +324,12 @@ shippingAddress: {
         shippingAddress: order.shippingAddress,
       })
       console.log(`[v0] Order confirmation email ${emailSent ? "sent" : "failed to send"} for order ${order.orderId}`)
+      await sendOrderConfirmationWhatsApp({
+        phone: order.customerPhone,
+        customerName: order.customerName,
+        orderId: order.orderId,
+        totalAmount: order.totalAmount,
+      })
     } catch (emailError) {
       console.error(`[v0] Error sending order confirmation email: ${emailError}`)
       // Don't fail the order creation if email fails - it's not critical

@@ -3,6 +3,7 @@ import connectDB from "@/lib/mongodb"
 import User from "@/models/User"
 import nodemailer from "nodemailer"
 import { sendMsg91OTP, normalizePhoneNumber } from "@/lib/msz91"
+import { sendOtpWhatsApp } from "@/lib/whatsapp-service"
 
 export const runtime = "nodejs"
 
@@ -185,6 +186,7 @@ if (method === "email") {
         // Send OTP via SMS using MSG91
         console.log(`[v0] Attempting to send OTP via MSG91...`)
         await sendOTPSMS(normalizedPhone, otp)
+        await sendOtpWhatsApp(normalizedPhone, otp, user.fullname)
         console.log(`[v0] SMS sent successfully`)
 
         // Save user with OTP

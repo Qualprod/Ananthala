@@ -4,6 +4,7 @@ import { jwtVerify } from "@/lib/jwt"
 import connectDB from "@/lib/mongodb"
 import Order from "@/models/order"
 import { sendOrderCancellationEmail, sendAdminOrderCancellationNotification } from "@/lib/email-service"
+import { sendOrderCancellationWhatsApp } from "@/lib/whatsapp-service"
 
 export async function PUT(request: NextRequest) {
   try {
@@ -133,6 +134,12 @@ export async function PUT(request: NextRequest) {
       if (emailSent) {
         console.log(`[v0] Order cancellation confirmation email sent to ${order.customerEmail}`)
       }
+      await sendOrderCancellationWhatsApp({
+        phone: order.customerPhone,
+        customerName: order.customerName,
+        orderId: order.orderId,
+        totalAmount: order.totalAmount,
+      })
     } catch (emailError) {
       console.error(`[v0] Error sending cancellation email:`, emailError)
     }

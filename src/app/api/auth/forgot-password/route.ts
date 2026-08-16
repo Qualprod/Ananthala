@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import connectDB from "@/lib/mongodb"
 import User from "@/models/User"
 import { sendOTPEmail } from "@/lib/email-service"
+import { sendOtpWhatsApp } from "@/lib/whatsapp-service"
 
 export const runtime = "nodejs"
 
@@ -47,6 +48,7 @@ export async function POST(request: Request) {
     // Send OTP via email
     console.log(`[v0] Sending OTP email to ${email}`)
     const emailSent = await sendOTPEmail(email, otp, user.fullname)
+    await sendOtpWhatsApp(user.phone, otp, user.fullname)
 
     if (!emailSent) {
       return NextResponse.json(

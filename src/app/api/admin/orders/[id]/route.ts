@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/mongodb"
 import Order from "@/models/order"
 import Product from "@/models/Product"
 import { sendOrderStatusUpdateEmail } from "@/lib/email-service"
+import { sendOrderStatusWhatsApp } from "@/lib/whatsapp-service"
 
 // Helper function to reduce product stock when order is delivered
 async function reduceProductStock(order: any) {
@@ -196,6 +197,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           items: order.items,
         })
         console.log(`[v0] Status update email ${emailSent ? "sent" : "failed to send"} for order ${order.orderId}`)
+        await sendOrderStatusWhatsApp({
+          phone: order.customerPhone,
+          customerName: order.customerName,
+          orderId: order.orderId,
+          status: orderStatus,
+          trackingNumber: trackingNumber || order.trackingNumber,
+        })
       } catch (emailError) {
         console.error(`[v0] Error sending status update email: ${emailError}`)
         // Don't fail the API call if email fails - order update is complete

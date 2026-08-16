@@ -4,6 +4,7 @@ import connectDB from "@/lib/mongodb"
 import User from "@/models/User"
 import { validatePassword } from "@/lib/password-validation"
 import { sendPasswordResetConfirmationEmail } from "@/lib/email-service"
+import { sendPasswordResetConfirmationWhatsApp } from "@/lib/whatsapp-service"
 
 export const runtime = "nodejs"
 
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
 
     // Send password reset confirmation email
     await sendPasswordResetConfirmationEmail(email, user.fullname)
+    await sendPasswordResetConfirmationWhatsApp(user.phone, user.fullname)
 
     return NextResponse.json(
       {
