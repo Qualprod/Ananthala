@@ -75,8 +75,43 @@ export async function sendOrderConfirmationWhatsApp(data: { phone?: string; cust
   return sendWhatsAppTemplate(data.phone, { name: configuredTemplate("ORDER_CONFIRMATION", "order_confirmation"), parameters: [data.customerName, data.orderId, `₹${data.totalAmount.toFixed(2)}`] })
 }
 
-export async function sendOrderStatusWhatsApp(data: { phone?: string; customerName: string; orderId: string; status: string; trackingNumber?: string }) {
-  return sendWhatsAppTemplate(data.phone, { name: configuredTemplate("ORDER_STATUS", "order_status_update"), parameters: [data.customerName, data.orderId, data.status, data.trackingNumber || "Not available"] })
+export const ORDER_STATUS_CATALOG = {
+  pending: { label: "Order received", templateKey: "ORDER_RECEIVED" },
+  order_received: { label: "Order received", templateKey: "ORDER_RECEIVED" },
+  processing: { label: "Order processing", templateKey: "ORDER_PROCESSING" },
+  order_processing: { label: "Order processing", templateKey: "ORDER_PROCESSING" },
+  shipped: { label: "Shipped", templateKey: "ORDER_SHIPPED" },
+  "in-transit": { label: "In transit", templateKey: "ORDER_IN_TRANSIT" },
+  delivered: { label: "Delivered", templateKey: "ORDER_DELIVERED" },
+  cancelled: { label: "Cancelled", templateKey: "ORDER_CANCELLATION" },
+  payment_failed: { label: "Payment failed", templateKey: "PAYMENT_FAILED" },
+} as const
+
+export type OrderStatus = keyof typeof ORDER_STATUS_CATALOG
+
+export function getOrderStatusLabel(status: string) {
+  return ORDER_STATUS_CATALOG[status as OrderStatus]?.label || status.replaceAll("_", " ").replace("-", " ")
+}
+
+export async function sendOrderStatusWhatsApp(data: {
+  phone?: string
+  customerName: string
+  orderId: string
+  status: string
+  trackingNumber?: string
+  trackingUrl?: string
+  shippingProvider?: string
+  notes?: string
+}) {
+  const statusInfo = ORDER_STATUS_CATALOG[data.status as OrderStatus] || { label: getOrderStatusLabel(data.status), templateKey: "ORDER_STATUS" }
+  const tracking = data.trackingNumber || "Not available"
+  const provider = data.shippingProvider || "Not available"
+  const trackingLink = data.trackingUrl || "Not available"
+
+  return sendWhatsAppTemplate(data.phone, {
+    name: configuredTemplate(statusInfo.templateKey, configuredTemplate("ORDER_STATUS", "order_status_update")),
+    parameters: [data.customerName, data.orderId, statusInfo.label, tracking, provider, trackingLink, data.notes || ""],
+  })
 }
 
 export async function sendOrderCancellationWhatsApp(data: { phone?: string; customerName: string; orderId: string; totalAmount: number }) {

@@ -62,6 +62,8 @@ interface Order {
     country?: string
   }
   trackingNumber?: string
+  trackingUrl?: string
+  shippingProvider?: string
 }
 
 interface Stats {
@@ -85,6 +87,8 @@ export default function OrderManagementPage() {
   const [page, setPage] = useState(1)
   const [newStatus, setNewStatus] = useState("")
   const [trackingNumber, setTrackingNumber] = useState("")
+  const [trackingUrl, setTrackingUrl] = useState("")
+  const [shippingProvider, setShippingProvider] = useState("")
   const [updateNotes, setUpdateNotes] = useState("")
   const [updateMessage, setUpdateMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
 
@@ -137,6 +141,8 @@ export default function OrderManagementPage() {
         body: JSON.stringify({
           orderStatus: newStatus,
           trackingNumber: trackingNumber || undefined,
+          trackingUrl: trackingUrl || undefined,
+          shippingProvider: shippingProvider || undefined,
           notes: updateNotes || undefined,
         }),
       })
@@ -157,6 +163,8 @@ export default function OrderManagementPage() {
       // Reset form
       setNewStatus("")
       setTrackingNumber("")
+      setTrackingUrl("")
+      setShippingProvider("")
       setUpdateNotes("")
       
       // Close status update modal after a short delay
@@ -698,7 +706,8 @@ export default function OrderManagementPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="order_processing">order_processing</SelectItem>
+                    <SelectItem value="order_received">Order Received</SelectItem>
+                    <SelectItem value="order_processing">Order Processing</SelectItem>
                     <SelectItem value="shipped">Shipped</SelectItem>
                     <SelectItem value="in-transit">In Transit</SelectItem>
                     <SelectItem value="delivered">Delivered</SelectItem>
@@ -734,6 +743,21 @@ export default function OrderManagementPage() {
                   className={`w-full ${isTrackingNumberRequired(newStatus) && !trackingNumber ? "border-red-300 focus:ring-red-200" : ""}`}
                   required={isTrackingNumberRequired(newStatus)}
                 />
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Shipping Provider</label>
+                  <Input placeholder="Shiprocket, Delhivery..." value={shippingProvider} onChange={(e) => setShippingProvider(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Tracking URL</label>
+                  <Input type="url" placeholder="https://..." value={trackingUrl} onChange={(e) => setTrackingUrl(e.target.value)} />
+                </div>
+              </div>
+
+              <div className="rounded-md border border-[#D9CFC7] bg-muted/30 p-3 text-sm text-foreground">
+                WhatsApp preview: <span className="font-medium">{newStatus.replaceAll("_", " ").replace("-", " ")}</span> update for {selectedOrder.customerName}, including tracking details when available.
               </div>
 
               {/* Update Notes Input */}

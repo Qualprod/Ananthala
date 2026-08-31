@@ -131,7 +131,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const { id } = await params
     await connectDB()
 
-    const { orderStatus, trackingNumber, notes, paymentStatus } = await request.json()
+    const { orderStatus, trackingNumber, trackingUrl, shippingProvider, notes, paymentStatus } = await request.json()
 
     // Validate orderStatus
     const validStatuses = ["pending", "processing", "shipped", "in-transit", "delivered", "cancelled", "payment_failed"]
@@ -150,7 +150,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     const updateData: Record<string, unknown> = {}
     if (orderStatus) updateData.orderStatus = orderStatus
-    if (trackingNumber) updateData.trackingNumber = trackingNumber
+    if (trackingNumber) updateData.trackingNumber = trackingNumber.trim()
+    if (trackingUrl) updateData.trackingUrl = trackingUrl.trim()
+    if (shippingProvider) updateData.shippingProvider = shippingProvider.trim()
     if (notes) updateData.notes = notes
     if (paymentStatus) updateData.paymentStatus = paymentStatus
 
@@ -203,6 +205,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           orderId: order.orderId,
           status: orderStatus,
           trackingNumber: trackingNumber || order.trackingNumber,
+          trackingUrl: trackingUrl || order.trackingUrl,
+          shippingProvider: shippingProvider || order.shippingProvider,
+          notes: notes || order.notes,
         })
       } catch (emailError) {
         console.error(`[v0] Error sending status update email: ${emailError}`)
