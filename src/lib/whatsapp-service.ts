@@ -23,6 +23,10 @@ function configuredTemplate(key: string, fallback: string) {
   return process.env[`META_WHATSAPP_TEMPLATE_${key}`] || fallback
 }
 
+function configuredTemplateOverride(key: string) {
+  return process.env[`META_WHATSAPP_TEMPLATE_${key}`]?.trim() || null
+}
+
 export async function sendWhatsAppTemplate(
   phone: string | undefined | null,
   template: WhatsAppTemplate,
@@ -103,13 +107,19 @@ export async function sendOrderStatusWhatsApp(data: {
   shippingProvider?: string
   notes?: string
 }) {
-  const statusInfo = ORDER_STATUS_CATALOG[data.status as OrderStatus] || { label: getOrderStatusLabel(data.status), templateKey: "ORDER_STATUS" }
+  const statusInfo = ORDER_STATUS_CATALOG[data.status as OrderStatus] || {
+    label: getOrderStatusLabel(data.status),
+    templateKey: "ORDER_STATUS",
+  }
   const tracking = data.trackingNumber || "Not available"
   const provider = data.shippingProvider || "Not available"
   const trackingLink = data.trackingUrl || "Not available"
+  const genericTemplate = configuredTemplateOverride("ORDER_STATUS")
+  const statusTemplate = configuredTemplateOverride(statusInfo.templateKey)
+  const templateName = statusTemplate || genericTemplate || "order_status_update"
 
   return sendWhatsAppTemplate(data.phone, {
-    name: configuredTemplate(statusInfo.templateKey, configuredTemplate("ORDER_STATUS", "order_status_update")),
+    name: templateName,
     parameters: [data.customerName, data.orderId, statusInfo.label, tracking, provider, trackingLink, data.notes || ""],
   })
 }
