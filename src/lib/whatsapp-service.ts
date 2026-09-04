@@ -27,6 +27,15 @@ function configuredTemplateOverride(key: string) {
   return process.env[`META_WHATSAPP_TEMPLATE_${key}`]?.trim() || null
 }
 
+function configuredParameterCount(key: string, fallback: number) {
+  const value = Number.parseInt(process.env[`META_WHATSAPP_TEMPLATE_${key}_PARAMS`] || "", 10)
+  return Number.isInteger(value) && value >= 0 && value <= 7 ? value : fallback
+}
+
+function parametersForTemplate(key: string, values: TemplateParameter[], fallbackCount: number) {
+  return values.slice(0, configuredParameterCount(key, fallbackCount))
+}
+
 export async function sendWhatsAppTemplate(
   phone: string | undefined | null,
   template: WhatsAppTemplate,
@@ -76,7 +85,11 @@ export async function sendWhatsAppTemplate(
 }
 
 export async function sendOrderConfirmationWhatsApp(data: { phone?: string; customerName: string; orderId: string; totalAmount: number }) {
-  return sendWhatsAppTemplate(data.phone, { name: configuredTemplate("ORDER_CONFIRMATION", "order_confirmation"), parameters: [data.customerName, data.orderId, `₹${data.totalAmount.toFixed(2)}`] })
+  const key = "ORDER_CONFIRMATION"
+  return sendWhatsAppTemplate(data.phone, {
+    name: configuredTemplate(key, "order_confirmation"),
+    parameters: parametersForTemplate(key, [data.customerName, data.orderId, `₹${data.totalAmount.toFixed(2)}`], 3),
+  })
 }
 
 export const ORDER_STATUS_CATALOG = {
@@ -118,26 +131,45 @@ export async function sendOrderStatusWhatsApp(data: {
   const statusTemplate = configuredTemplateOverride(statusInfo.templateKey)
   const templateName = statusTemplate || genericTemplate || "order_status_update"
 
+  const templateKey = statusTemplate ? statusInfo.templateKey : genericTemplate ? "ORDER_STATUS" : statusInfo.templateKey
+  const values = [data.customerName, data.orderId, statusInfo.label, tracking, provider, trackingLink, data.notes || ""]
+
   return sendWhatsAppTemplate(data.phone, {
     name: templateName,
-    parameters: [data.customerName, data.orderId, statusInfo.label, tracking, provider, trackingLink, data.notes || ""],
+    parameters: parametersForTemplate(templateKey, values, 3),
   })
 }
 
 export async function sendOrderCancellationWhatsApp(data: { phone?: string; customerName: string; orderId: string; totalAmount: number }) {
-  return sendWhatsAppTemplate(data.phone, { name: configuredTemplate("ORDER_CANCELLATION", "order_cancelled"), parameters: [data.customerName, data.orderId, `₹${data.totalAmount.toFixed(2)}`] })
+  const key = "ORDER_CANCELLATION"
+  return sendWhatsAppTemplate(data.phone, {
+    name: configuredTemplate(key, "order_cancelled"),
+    parameters: parametersForTemplate(key, [data.customerName, data.orderId, `₹${data.totalAmount.toFixed(2)}`], 3),
+  })
 }
 
 export async function sendWelcomeWhatsApp(phone: string | undefined, fullname: string) {
-  return sendWhatsAppTemplate(phone, { name: configuredTemplate("WELCOME", "welcome_message"), parameters: [fullname] })
+  const key = "WELCOME"
+  return sendWhatsAppTemplate(phone, {
+    name: configuredTemplate(key, "welcome_message"),
+    parameters: parametersForTemplate(key, [fullname], 1),
+  })
 }
 
 export async function sendOtpWhatsApp(phone: string | undefined, otp: string, userName: string) {
-  return sendWhatsAppTemplate(phone, { name: configuredTemplate("OTP", "login_otp"), parameters: [userName, otp] })
+  const key = "OTP"
+  return sendWhatsAppTemplate(phone, {
+    name: configuredTemplate(key, "login_otp"),
+    parameters: parametersForTemplate(key, [userName, otp], 2),
+  })
 }
 
 export async function sendPasswordResetConfirmationWhatsApp(phone: string | undefined, userName: string) {
-  return sendWhatsAppTemplate(phone, { name: configuredTemplate("PASSWORD_RESET", "password_reset_confirmation"), parameters: [userName] })
+  const key = "PASSWORD_RESET"
+  return sendWhatsAppTemplate(phone, {
+    name: configuredTemplate(key, "password_reset_confirmation"),
+    parameters: parametersForTemplate(key, [userName], 1),
+  })
 }
 
 export { normalizePhone }
