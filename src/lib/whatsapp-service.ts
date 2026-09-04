@@ -132,11 +132,14 @@ export async function sendOrderStatusWhatsApp(data: {
   const templateName = statusTemplate || genericTemplate || "order_status_update"
 
   const templateKey = statusTemplate ? statusInfo.templateKey : genericTemplate ? "ORDER_STATUS" : statusInfo.templateKey
-  const values = [data.customerName, data.orderId, statusInfo.label, tracking, provider, trackingLink, data.notes || ""]
+  // Status templates use five body variables in Meta: customer, order, status,
+  // tracking number, and tracking URL. Keep the payload aligned even if an old
+  // *_PARAMS environment variable is still set to the previous three-variable shape.
+  const values = [data.customerName, data.orderId, statusInfo.label, tracking, trackingLink]
 
   return sendWhatsAppTemplate(data.phone, {
     name: templateName,
-    parameters: parametersForTemplate(templateKey, values, 3),
+    parameters: values.slice(0, 5),
   })
 }
 
