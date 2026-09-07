@@ -137,14 +137,14 @@ export async function sendOrderStatusWhatsApp(data: {
   // template with a different approved body shape (for example, three values).
   const values = [data.customerName, data.orderId, statusInfo.label, tracking, trackingLink]
   const parameterKey = statusTemplate ? statusInfo.templateKey : "ORDER_STATUS"
-  // Keep the payload aligned with the approved template. The current
-  // order-status template has two body variables; set the environment override
-  // only when the selected Meta template has a different approved count.
-  const parameterCount = configuredParameterCount(parameterKey, 2)
+  // The approved order-status templates use exactly two body variables.
+  // Do not honor a stale *_PARAMS environment value here, because sending a
+  // third variable causes Meta error 132000 when the template expects two.
+  const statusParameters = [data.customerName, data.orderId]
 
   return sendWhatsAppTemplate(data.phone, {
     name: templateName,
-    parameters: values.slice(0, parameterCount),
+    parameters: statusParameters,
   })
 }
 
