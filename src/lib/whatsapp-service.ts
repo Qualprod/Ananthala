@@ -1,9 +1,31 @@
 import "server-only"
 
 const DEFAULT_API_VERSION = "v23.0"
+const DEFAULT_TEMPLATE_LANGUAGE = "en"
 const REQUEST_TIMEOUT_MS = 8000
 
 type TemplateParameter = string | number
+
+type TemplateConfig = {
+  name: string
+  language: string
+  parameterCount: number
+}
+
+const TEMPLATE_CONFIGS: Record<string, TemplateConfig> = {
+  ORDER_CONFIRMATION: { name: "order_confirmation", language: "en", parameterCount: 3 },
+  ORDER_CANCELLATION: { name: "order_cancelled", language: "en", parameterCount: 2 },
+  WELCOME: { name: "welcome_message", language: "en", parameterCount: 1 },
+  OTP: { name: "login_otp", language: "en", parameterCount: 2 },
+  PASSWORD_RESET: { name: "password_reset_confirmation", language: "en", parameterCount: 1 },
+  ORDER_STATUS: { name: "order_status_update", language: "en", parameterCount: 2 },
+  ORDER_RECEIVED: { name: "order_received", language: "en", parameterCount: 2 },
+  ORDER_PROCESSING: { name: "order_processing", language: "en", parameterCount: 2 },
+  ORDER_SHIPPED: { name: "order_shipped", language: "en", parameterCount: 2 },
+  ORDER_IN_TRANSIT: { name: "order_in_transit", language: "en", parameterCount: 2 },
+  ORDER_DELIVERED: { name: "order_delivered", language: "en", parameterCount: 2 },
+  PAYMENT_FAILED: { name: "payment_failed", language: "en", parameterCount: 2 },
+}
 
 type WhatsAppTemplate = {
   name: string
@@ -19,10 +41,6 @@ function normalizePhone(phone?: string | null) {
   return normalized.length >= 10 && normalized.length <= 15 ? normalized : null
 }
 
-function configuredTemplate(key: string, fallback: string) {
-  return process.env[`META_WHATSAPP_TEMPLATE_${key}`] || fallback
-}
-
 function configuredTemplateOverride(key: string) {
   return process.env[`META_WHATSAPP_TEMPLATE_${key}`]?.trim() || null
 }
@@ -32,8 +50,22 @@ function configuredParameterCount(key: string, fallback: number) {
   return Number.isInteger(value) && value >= 0 && value <= 7 ? value : fallback
 }
 
-function parametersForTemplate(key: string, values: TemplateParameter[], fallbackCount: number) {
-  return values.slice(0, configuredParameterCount(key, fallbackCount))
+function parametersForTemplate(key: string, values: TemplateParameter[]) {
+  const config = TEMPLATE_CONFIGS[key] || TEMPLATE_CONFIGS.ORDER_STATUS
+  return values.slice(0, configuredParameterCount(key, config.parameterCount))
+}
+
+function resolveTemplate(key: string): TemplateConfig {
+  const config = TEMPLATE_CONFIGS[key] || TEMPLATE_CONFIGS.ORDER_STATUS
+  return {
+    name: process.env[`META_WHATSAPP_TEMPLATE_${key}`]?.trim() || config.name,
+    language:
+      process.env[`META_WHATSAPP_TEMPLATE_${key}_LANGUAGE`]?.trim() ||
+      process.env.META_WHATSAPP_TEMPLATE_LANGUAGE?.trim() ||
+      config.language ||
+      DEFAULT_TEMPLATE_LANGUAGE,
+    parameterCount: configuredParameterCount(key, config.parameterCount),
+  }
 }
 
 export async function sendWhatsAppTemplate(
@@ -60,7 +92,7 @@ export async function sendWhatsAppTemplate(
         type: "template",
         template: {
           name: template.name,
-          language: { code: template.language || process.env.META_WHATSAPP_TEMPLATE_LANGUAGE || "en_US" },
+          language: { code: template.language || DEFAULT_TEMPLATE_LANGUAGE },
           ...(template.parameters?.length
             ? { components: [{ type: "body", parameters: template.parameters.map((text) => ({ type: "text", text: String(text) })) }] }
             : {}),
@@ -86,9 +118,11 @@ export async function sendWhatsAppTemplate(
 
 export async function sendOrderConfirmationWhatsApp(data: { phone?: string; customerName: string; orderId: string; totalAmount: number }) {
   const key = "ORDER_CONFIRMATION"
+  const template = resolveTemplate(key)
   return sendWhatsAppTemplate(data.phone, {
-    name: configuredTemplate(key, "order_confirmation"),
-    parameters: parametersForTemplate(key, [data.customerName, data.orderId, `₹${data.totalAmount.toFixed(2)}`], 3),
+    name: template.name,
+    language: template.language,
+    parameters: parametersForTemplate(key, [data.customerName, "purchase", `#${data.orderId}`]),
   })
 }
 
@@ -140,43 +174,53 @@ export async function sendOrderStatusWhatsApp(data: {
   // The approved order-status templates use exactly two body variables.
   // Do not honor a stale *_PARAMS environment value here, because sending a
   // third variable causes Meta error 132000 when the template expects two.
-  const statusParameters = [data.customerName, data.orderId]
+  const template = resolveTemplate(statusTemplate ? statusInfo.templateKey : "ORDER_STATUS")
+  const statusParameters = [data.customerName, `#${data.orderId}`]
 
   return sendWhatsAppTemplate(data.phone, {
-    name: templateName,
-    parameters: statusParameters,
+    name: templateName || template.name,
+    language: template.language,
+    parameters: parametersForTemplate(statusTemplate ? statusInfo.templateKey : "ORDER_STATUS", statusParameters),
   })
 }
 
 export async function sendOrderCancellationWhatsApp(data: { phone?: string; customerName: string; orderId: string; totalAmount: number }) {
   const key = "ORDER_CANCELLATION"
+  const template = resolveTemplate(key)
   return sendWhatsAppTemplate(data.phone, {
-    name: configuredTemplate(key, "order_cancelled"),
-    parameters: parametersForTemplate(key, [data.customerName, data.orderId, `₹${data.totalAmount.toFixed(2)}`], 3),
+    name: template.name,
+    language: template.language,
+    parameters: parametersForTemplate(key, [data.customerName, `#${data.orderId}`]),
   })
 }
 
 export async function sendWelcomeWhatsApp(phone: string | undefined, fullname: string) {
   const key = "WELCOME"
+  const template = resolveTemplate(key)
   return sendWhatsAppTemplate(phone, {
-    name: configuredTemplate(key, "welcome_message"),
-    parameters: parametersForTemplate(key, [fullname], 1),
+    name: template.name,
+    language: template.language,
+    parameters: parametersForTemplate(key, [fullname]),
   })
 }
 
 export async function sendOtpWhatsApp(phone: string | undefined, otp: string, userName: string) {
   const key = "OTP"
+  const template = resolveTemplate(key)
   return sendWhatsAppTemplate(phone, {
-    name: configuredTemplate(key, "login_otp"),
-    parameters: parametersForTemplate(key, [userName, otp], 2),
+    name: template.name,
+    language: template.language,
+    parameters: parametersForTemplate(key, [userName, otp]),
   })
 }
 
 export async function sendPasswordResetConfirmationWhatsApp(phone: string | undefined, userName: string) {
   const key = "PASSWORD_RESET"
+  const template = resolveTemplate(key)
   return sendWhatsAppTemplate(phone, {
-    name: configuredTemplate(key, "password_reset_confirmation"),
-    parameters: parametersForTemplate(key, [userName], 1),
+    name: template.name,
+    language: template.language,
+    parameters: parametersForTemplate(key, [userName]),
   })
 }
 
