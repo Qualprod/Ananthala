@@ -132,14 +132,16 @@ export async function sendOrderStatusWhatsApp(data: {
   const templateName = statusTemplate || genericTemplate || "order_status_update"
 
   const templateKey = statusTemplate ? statusInfo.templateKey : genericTemplate ? "ORDER_STATUS" : statusInfo.templateKey
-  // Status templates use five body variables in Meta: customer, order, status,
-  // tracking number, and tracking URL. Keep the payload aligned even if an old
-  // *_PARAMS environment variable is still set to the previous three-variable shape.
+  // Meta requires the body parameter count to exactly match the approved template.
+  // The default status template uses five values, while *_PARAMS allows a local
+  // template with a different approved body shape (for example, three values).
   const values = [data.customerName, data.orderId, statusInfo.label, tracking, trackingLink]
+  const parameterKey = statusTemplate ? statusInfo.templateKey : "ORDER_STATUS"
+  const parameterCount = configuredParameterCount(parameterKey, 5)
 
   return sendWhatsAppTemplate(data.phone, {
     name: templateName,
-    parameters: values.slice(0, 5),
+    parameters: values.slice(0, parameterCount),
   })
 }
 
