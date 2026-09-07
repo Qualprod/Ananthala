@@ -137,7 +137,10 @@ export async function sendOrderStatusWhatsApp(data: {
   // template with a different approved body shape (for example, three values).
   const values = [data.customerName, data.orderId, statusInfo.label, tracking, trackingLink]
   const parameterKey = statusTemplate ? statusInfo.templateKey : "ORDER_STATUS"
-  const parameterCount = configuredParameterCount(parameterKey, 5)
+  // Keep the payload aligned with the approved template. The current
+  // order-status template has two body variables; set the environment override
+  // only when the selected Meta template has a different approved count.
+  const parameterCount = configuredParameterCount(parameterKey, 2)
 
   return sendWhatsAppTemplate(data.phone, {
     name: templateName,
