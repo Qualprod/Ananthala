@@ -32,12 +32,6 @@ function configuredParameterCount(key: string, fallback: number) {
   return Number.isInteger(value) && value >= 0 && value <= 7 ? value : fallback
 }
 
-function normalizeAccessToken(value?: string | null) {
-  if (!value) return null
-  const token = value.trim().replace(/^Bearer\\s+/i, "").replace(/^['\"]|['\"]$/g, "")
-  return token || null
-}
-
 function parametersForTemplate(key: string, values: TemplateParameter[], fallbackCount: number) {
   return values.slice(0, configuredParameterCount(key, fallbackCount))
 }
@@ -47,15 +41,12 @@ export async function sendWhatsAppTemplate(
   template: WhatsAppTemplate,
 ): Promise<boolean> {
   const recipient = normalizePhone(phone)
-  const token = normalizeAccessToken(process.env.META_WHATSAPP_ACCESS_TOKEN || process.env.CURL_AUTH_HEADER)
-  const phoneNumberId = process.env.META_WHATSAPP_PHONE_NUMBER_ID?.trim()
+  const token = process.env.META_WHATSAPP_ACCESS_TOKEN
+  const phoneNumberId = process.env.META_WHATSAPP_PHONE_NUMBER_ID
 
-  if (!recipient || !token || !phoneNumberId) {
-    console.error("[v0] WhatsApp is not configured. Set META_WHATSAPP_ACCESS_TOKEN and META_WHATSAPP_PHONE_NUMBER_ID.")
-    return false
-  }
+  if (!recipient || !token || !phoneNumberId) return false
 
-  const version = (process.env.META_WHATSAPP_API_VERSION || DEFAULT_API_VERSION).trim().replace(/^v/i, "v")
+  const version = process.env.META_WHATSAPP_API_VERSION || DEFAULT_API_VERSION
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
@@ -80,21 +71,7 @@ export async function sendWhatsAppTemplate(
 
     if (!response.ok) {
       const errorBody = await response.text()
-      let errorCode: string | undefined
-      try {
-        errorCode = JSON.parse(errorBody)?.error?.code
-      } catch {
-        errorCode = undefined
-      }
-      console.error("[v0] WhatsApp template failed", {
-        status: response.status,
-        recipientLast4: recipient.slice(-4),
-        errorCode,
-        error: errorBody.slice(0, 500),
-        ...(response.status === 401 || errorCode === "190"
-          ? { hint: "Refresh the Meta token and verify it has WhatsApp business messaging permissions." }
-          : {}),
-      })
+      console.error("[v0] WhatsApp template failed", { status: response.status, recipientLast4: recipient.slice(-4), error: errorBody.slice(0, 500) })
       return false
     }
 
