@@ -8,14 +8,14 @@ const getEmailTransporter = async () => {
   // Check for both EMAIL_PASSWORD and EMAIL_APP_PASSWORD for backward compatibility
   const emailPassword = process.env.EMAIL_PASSWORD || process.env.EMAIL_APP_PASSWORD
 
-  console.log(`[v0] Email Provider: ${emailProvider}`)
-  console.log(`[v0] Email User: ${emailUser || "NOT SET"}`)
-  console.log(`[v0] EMAIL_PASSWORD exists: ${!!process.env.EMAIL_PASSWORD}`)
-  console.log(`[v0] EMAIL_APP_PASSWORD exists: ${!!process.env.EMAIL_APP_PASSWORD}`)
-  console.log(`[v0] Final password exists: ${!!emailPassword}`)
+  console.log(`[Email Provider: ${emailProvider}`)
+  console.log(`Email User: ${emailUser || "NOT SET"}`)
+  console.log(`EMAIL_PASSWORD exists: ${!!process.env.EMAIL_PASSWORD}`)
+  console.log(`EMAIL_APP_PASSWORD exists: ${!!process.env.EMAIL_APP_PASSWORD}`)
+  console.log(`Final password exists: ${!!emailPassword}`)
 
   if (emailProvider === "gmail" && emailUser && emailPassword) {
-    console.log(`[v0] Configuring Gmail transport for ${emailUser}`)
+    console.log(`Configuring Gmail transport for ${emailUser}`)
     return nodemailer.createTransport({
       service: "gmail",
       auth: {
@@ -32,7 +32,7 @@ const getEmailTransporter = async () => {
     process.env.SMTP_USER &&
     process.env.SMTP_PASSWORD
   ) {
-    console.log(`[v0] Configuring SMTP transport for ${process.env.SMTP_USER}`)
+    console.log(`Configuring SMTP transport for ${process.env.SMTP_USER}`)
     return nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: Number(process.env.SMTP_PORT),
@@ -45,7 +45,7 @@ const getEmailTransporter = async () => {
   }
 
   // Fallback to test account if no credentials provided
-  console.warn("[v0] No email credentials configured. Using test account.")
+  console.warn("No email credentials configured. Using test account.")
   const testAccount = await nodemailer.createTestAccount()
   return nodemailer.createTransport({
     host: "smtp.ethereal.email",
@@ -622,10 +622,10 @@ Thank you for choosing Ananthala!
     }
 
     await transporter.sendMail(mailOptions)
-    console.log(`[v0] Order confirmation email sent to ${order.customerEmail}`)
+    console.log(`Order confirmation email sent to ${order.customerEmail}`)
     return true
   } catch (error) {
-    console.error(`[v0] Failed to send order confirmation email: ${error}`)
+    console.error(`Failed to send order confirmation email: ${error}`)
     return false
   }
 }
@@ -659,12 +659,12 @@ export async function sendOrderCancellationEmail(
   orderData: OrderCancellationData,
 ): Promise<boolean> {
   try {
-    console.log(`[v0] Starting order cancellation email process for order : ${orderData.orderId}`)
+    console.log(`Starting order cancellation email process for order : ${orderData.orderId}`)
     
     const transporter = await getEmailTransporter()
     
     if (!transporter) {
-      console.error(`[v0] Email transporter not configured for cancellation email`)
+      console.error(`Email transporter not configured for cancellation email`)
       return false
     }
 
@@ -1039,20 +1039,20 @@ Thank you for choosing Ananthala.
       `,
     }
 
-    console.log(`[v0] Sending cancellation email to ${orderData.customerEmail}`, {
+    console.log(`Sending cancellation email to ${orderData.customerEmail}`, {
       orderId: orderData.orderId,
       customerName: orderData.customerName,
       itemsCount: orderData.items.length,
     })
     
     const info = await transporter.sendMail(mailOptions)
-    console.log(`[v0] Order cancellation email sent successfully to ${orderData.customerEmail}`, {
+    console.log(`Order cancellation email sent successfully to ${orderData.customerEmail}`, {
       messageId: info.messageId,
       orderId: orderData.orderId,
     })
     return true
   } catch (error) {
-    console.error(`[v0] Failed to send order cancellation email:`, {
+    console.error(`Failed to send order cancellation email:`, {
       error: error instanceof Error ? error.message : String(error),
       orderId: orderData.orderId,
       customerEmail: orderData.customerEmail,
@@ -1413,10 +1413,10 @@ Thank you for choosing Ananthala!
     }
 
     await transporter.sendMail(mailOptions)
-    console.log(`[v0] Order status update email sent to ${statusData.customerEmail}`)
+    console.log(`Order status update email sent to ${statusData.customerEmail}`)
     return true
   } catch (error) {
-    console.error(`[v0] Failed to send order status update email: ${error}`)
+    console.error(`Failed to send order status update email: ${error}`)
     return false
   }
 }
@@ -1430,7 +1430,7 @@ export async function sendWelcomeEmail(
     const transporter = await getEmailTransporter()
     
     if (!transporter) {
-      console.error(`[v0] Email transporter not configured for welcome email`)
+      console.error(`Email transporter not configured for welcome email`)
       return false
     }
 
@@ -1549,10 +1549,10 @@ Phone: +91 9071799966
     }
 
     await transporter.sendMail(mailOptions)
-    console.log(`[v0] Welcome email sent to ${email}`)
+    console.log(`Welcome email sent to ${email}`)
     return true
   } catch (error) {
-    console.error(`[v0] Failed to send welcome email: ${error}`)
+    console.error(`Failed to send welcome email: ${error}`)
     return false
   }
 }
@@ -1563,15 +1563,15 @@ export async function sendOTPEmail(
   userName: string,
 ): Promise<boolean> {
   try {
-    console.log(`[v0] Starting sendOTPEmail for ${email}`)
+    console.log(`Starting sendOTPEmail for ${email}`)
     const transporter = await getEmailTransporter()
 
     if (!transporter) {
-      console.error(`[v0] Email transporter not configured for OTP email`)
+      console.error(`Email transporter not configured for OTP email`)
       return false
     }
 
-    console.log(`[v0] Email transporter configured successfully`)
+    console.log(`Email transporter configured successfully`)
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.ananthala.com"
     const logoUrl = `${appUrl.replace(/\/$/, "")}/logo.png`
@@ -1740,16 +1740,16 @@ Ananthala Team
       `,
     }
 
-    console.log(`[v0] Calling transporter.sendMail with options:`, {
+    console.log(`Calling transporter.sendMail with options:`, {
       from: mailOptions.from,
       to: mailOptions.to,
       subject: mailOptions.subject,
     })
     const result = await transporter.sendMail(mailOptions)
-    console.log(`[v0] Password reset OTP sent successfully to ${email}`, result)
+    console.log(`Password reset OTP sent successfully to ${email}`, result)
     return true
   } catch (error) {
-    console.error(`[v0] Failed to send OTP email:`, error)
+    console.error(`Failed to send OTP email:`, error)
     return false
   }
 }
@@ -1762,7 +1762,7 @@ export async function sendPasswordResetConfirmationEmail(
     const transporter = await getEmailTransporter()
 
     if (!transporter) {
-      console.error(`[v0] Email transporter not configured for password reset email`)
+      console.error(`Email transporter not configured for password reset email`)
       return false
     }
 
@@ -2001,10 +2001,10 @@ Phone: +91 9071799966
     }
 
     await transporter.sendMail(mailOptions)
-    console.log(`[v0] Password reset confirmation email sent to ${email}`)
+    console.log(`Password reset confirmation email sent to ${email}`)
     return true
   } catch (error) {
-    console.error(`[v0] Failed to send password reset confirmation email: ${error}`)
+    console.error(`Failed to send password reset confirmation email: ${error}`)
     return false
   }
 }
@@ -2027,7 +2027,7 @@ export async function sendAdminOrderCancellationNotification(
     const transporter = await getEmailTransporter()
 
     if (!transporter) {
-      console.error(`[v0] Email transporter not configured for admin notification`)
+      console.error(`Email transporter not configured for admin notification`)
       return false
     }
 
@@ -2188,10 +2188,10 @@ ACTION REQUIRED:
     }
 
     await transporter.sendMail(mailOptions)
-    console.log(`[v0] Admin cancellation notification sent for order ${notificationData.orderId}`)
+    console.log(`Admin cancellation notification sent for order ${notificationData.orderId}`)
     return true
   } catch (error) {
-    console.error(`[v0] Failed to send admin cancellation notification: ${error}`)
+    console.error(`Failed to send admin cancellation notification: ${error}`)
     return false
   }
 }
