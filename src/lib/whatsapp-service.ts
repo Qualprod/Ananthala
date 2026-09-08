@@ -33,12 +33,22 @@ type WhatsAppTemplate = {
   parameters?: TemplateParameter[]
 }
 
+export type WhatsAppDeliveryResult =
+  | { ok: true; messageId?: string; recipientLast4: string }
+  | { ok: false; reason: "invalid_recipient" | "missing_configuration" | "meta_error" | "timeout" | "request_failed"; status?: number; recipientLast4?: string }
+
 function normalizePhone(phone?: string | null) {
   if (!phone) return null
   const digits = phone.replace(/\D/g, "")
   if (!digits) return null
   const normalized = digits.length === 10 ? `91${digits}` : digits
   return normalized.length >= 10 && normalized.length <= 15 ? normalized : null
+}
+
+function normalizeAccessToken(value?: string | null) {
+  if (!value) return null
+  const token = value.trim().replace(/^Bearer\s+/i, "").replace(/^['\"]|['\"]$/g, "")
+  return token || null
 }
 
 function configuredTemplateOverride(key: string) {
@@ -71,14 +81,25 @@ function resolveTemplate(key: string): TemplateConfig {
 export async function sendWhatsAppTemplate(
   phone: string | undefined | null,
   template: WhatsAppTemplate,
-): Promise<boolean> {
+): Promise<WhatsAppDeliveryResult> {
   const recipient = normalizePhone(phone)
-  const token = process.env.META_WHATSAPP_ACCESS_TOKEN
-  const phoneNumberId = process.env.META_WHATSAPP_PHONE_NUMBER_ID
+  const token = normalizeAccessToken(process.env.META_WHATSAPP_ACCESS_TOKEN || process.env.CURL_AUTH_HEADER)
+  const phoneNumberId = process.env.META_WHATSAPP_PHONE_NUMBER_ID?.trim()
+  const recipientLast4 = recipient?.slice(-4)
 
-  if (!recipient || !token || !phoneNumberId) return false
+  if (!recipient) {
+    console.error("[v0] WhatsApp delivery skipped: invalid recipient phone number")
+    return { ok: false, reason: "invalid_recipient" }
+  }
+  if (!token || !phoneNumberId) {
+    console.error("[v0] WhatsApp delivery skipped: missing Meta configuration", {
+      hasAccessToken: Boolean(token),
+      hasPhoneNumberId: Boolean(phoneNumberId),
+    })
+    return { ok: false, reason: "missing_configuration", recipientLast4 }
+  }
 
-  const version = process.env.META_WHATSAPP_API_VERSION || DEFAULT_API_VERSION
+  const version = (process.env.META_WHATSAPP_API_VERSION || DEFAULT_API_VERSION).trim()
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
@@ -103,14 +124,27 @@ export async function sendWhatsAppTemplate(
 
     if (!response.ok) {
       const errorBody = await response.text()
-      console.error("[v0] WhatsApp template failed", { status: response.status, recipientLast4: recipient.slice(-4), error: errorBody.slice(0, 500) })
-      return false
+      console.error("[v0] WhatsApp template failed", {
+        status: response.status,
+        recipientLast4: recipient.slice(-4),
+        error: errorBody.slice(0, 500),
+      })
+      return { ok: false, reason: "meta_error", status: response.status, recipientLast4 }
     }
 
-    return true
+    const responseBody = (await response.json().catch(() => null)) as { messages?: Array<{ id?: string }> } | null
+    const messageId = responseBody?.messages?.[0]?.id
+    console.log("[v0] WhatsApp message accepted", { recipientLast4: recipient.slice(-4), messageId })
+    return { ok: true, messageId, recipientLast4: recipient.slice(-4) }
   } catch (error) {
-    console.error("[v0] WhatsApp request failed", { recipientLast4: recipient.slice(-4), error: error instanceof Error ? error.message : String(error) })
-    return false
+    const reason = error instanceof DOMException && error.name === "AbortError" ? "timeout" : "request_failed"
+    console.error("[v0] WhatsApp request failed", {
+      recipientLast4: recipient.slice(-4),
+      reason,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return { ok: false, reason, recipientLast4 }
+
   } finally {
     clearTimeout(timeout)
   }
