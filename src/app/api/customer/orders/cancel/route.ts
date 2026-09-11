@@ -4,6 +4,7 @@ import { jwtVerify } from "@/lib/jwt"
 import connectDB from "@/lib/mongodb"
 import Order from "@/models/order"
 import { sendOrderCancellationEmail, sendAdminOrderCancellationNotification } from "@/lib/email-service"
+import { sendOrderCancellationWhatsApp } from "@/lib/whatsapp-service"
 
 export async function PUT(request: NextRequest) {
   try {
@@ -35,7 +36,7 @@ export async function PUT(request: NextRequest) {
     try {
       customerObjectId = new mongoose.Types.ObjectId(decoded.userId)
     } catch (e) {
-      console.error("[v0] Invalid customer ID format:", decoded.userId)
+      console.error("Invalid customer ID format:", decoded.userId)
       return NextResponse.json({ success: false, error: "Invalid user ID" }, { status: 400 })
     }
 
@@ -107,7 +108,7 @@ export async function PUT(request: NextRequest) {
 
     // Send cancellation confirmation email to customer
     try {
-      console.log(`[v0] Sending cancellation email to customer for order ${order.orderId}`)
+      console.log(`Sending cancellation email to customer for order ${order.orderId}`)
       
       const cancellationEmailData = {
         orderId: order.orderId,
@@ -131,15 +132,29 @@ export async function PUT(request: NextRequest) {
       
       const emailSent = await sendOrderCancellationEmail(cancellationEmailData)
       if (emailSent) {
-        console.log(`[v0] Order cancellation confirmation email sent to ${order.customerEmail}`)
+        console.log(`Order cancellation confirmation email sent to ${order.customerEmail}`)
       }
+      const whatsappResult = await sendOrderCancellationWhatsApp({
+        phone: order.customerPhone,
+        customerName: order.customerName,
+        orderId: order.orderId,
+        totalAmount: order.totalAmount,
+      })
+      console.log("WhatsApp order cancellation notification", {
+        orderId: order.orderId,
+        action: "order_cancelled",
+        ok: whatsappResult.ok,
+        ...(whatsappResult.ok
+          ? { messageId: whatsappResult.messageId }
+          : { reason: whatsappResult.reason, statusCode: whatsappResult.status }),
+      })
     } catch (emailError) {
-      console.error(`[v0] Error sending cancellation email:`, emailError)
+      console.error(`Error sending cancellation email:`, emailError)
     }
 
     // Send admin notification about order cancellation
     try {
-      console.log(`[v0] Sending admin notification for cancelled order ${order.orderId}`)
+      console.log(`Sending admin notification for cancelled order ${order.orderId}`)
       
       const adminNotificationData = {
         orderId: order.orderId,
@@ -156,10 +171,10 @@ export async function PUT(request: NextRequest) {
       
       const adminNotified = await sendAdminOrderCancellationNotification(adminNotificationData)
       if (adminNotified) {
-        console.log(`[v0] Admin notification sent for cancelled order ${order.orderId}`)
+        console.log(`Admin notification sent for cancelled order ${order.orderId}`)
       }
     } catch (adminNotifyError) {
-      console.error(`[v0] Error sending admin notification:`, adminNotifyError)
+      console.error(`Error sending admin notification:`, adminNotifyError)
     }
 
     return NextResponse.json(
@@ -177,7 +192,7 @@ export async function PUT(request: NextRequest) {
       { status: 200 },
     )
   } catch (error) {
-    console.error("[v0] Cancel order API error:", error)
+    console.error("Cancel order API error:", error)
     return NextResponse.json(
       {
         success: false,
