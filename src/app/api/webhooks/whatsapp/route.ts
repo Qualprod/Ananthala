@@ -70,7 +70,7 @@ export async function POST(request: Request) {
 
   try {
     const payload = await request.json()
-    console.log("[v0] WhatsApp webhook event", safeEventSummary(payload))
+    console.log("WhatsApp webhook event", safeEventSummary(payload))
     return NextResponse.json({ received: true })
   } catch {
     return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 })
