@@ -4,6 +4,7 @@ import { verifyToken } from "@/lib/jwt"
 import connectDB from "@/lib/mongodb"
 import Order from "@/models/order"
 import { sendOrderConfirmationEmail } from "@/lib/email-service"
+import { sendOrderConfirmationWhatsApp } from "@/lib/whatsapp-service"
 
 export const runtime = "nodejs"
 
@@ -55,6 +56,21 @@ export async function POST(request: Request) {
       shippingAddress: order.shippingAddress,
     })
 
+    const whatsappResult = await sendOrderConfirmationWhatsApp({
+      phone: order.customerPhone,
+      customerName: order.customerName,
+      orderId: order.orderId,
+      totalAmount: order.totalAmount,
+    })
+    console.log("WhatsApp order confirmation notification", {
+      orderId: order.orderId,
+      action: "order_confirmation",
+      ok: whatsappResult.ok,
+      ...(whatsappResult.ok
+        ? { messageId: whatsappResult.messageId }
+        : { reason: whatsappResult.reason, statusCode: whatsappResult.status }),
+    })
+
     if (emailSent) {
       return NextResponse.json(
         { success: true, message: "Order confirmation email sent successfully" },
@@ -67,7 +83,7 @@ export async function POST(request: Request) {
       )
     }
   } catch (error: any) {
-    console.error("[v0] ORDER_CONFIRMATION_EMAIL_ERROR:", error)
+    console.error("ORDER_CONFIRMATION_EMAIL_ERROR:", error)
     return NextResponse.json(
       { success: false, message: error?.message || "Failed to send order confirmation email" },
       { status: 500 },
