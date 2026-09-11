@@ -134,11 +134,19 @@ export async function PUT(request: NextRequest) {
       if (emailSent) {
         console.log(`[v0] Order cancellation confirmation email sent to ${order.customerEmail}`)
       }
-      await sendOrderCancellationWhatsApp({
+      const whatsappResult = await sendOrderCancellationWhatsApp({
         phone: order.customerPhone,
         customerName: order.customerName,
         orderId: order.orderId,
         totalAmount: order.totalAmount,
+      })
+      console.log("[v0] WhatsApp order cancellation notification", {
+        orderId: order.orderId,
+        action: "order_cancelled",
+        ok: whatsappResult.ok,
+        ...(whatsappResult.ok
+          ? { messageId: whatsappResult.messageId }
+          : { reason: whatsappResult.reason, statusCode: whatsappResult.status }),
       })
     } catch (emailError) {
       console.error(`[v0] Error sending cancellation email:`, emailError)

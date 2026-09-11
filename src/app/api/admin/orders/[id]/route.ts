@@ -199,7 +199,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           items: order.items,
         })
         console.log(`[v0] Status update email ${emailSent ? "sent" : "failed to send"} for order ${order.orderId}`)
-        await sendOrderStatusWhatsApp({
+        const whatsappResult = await sendOrderStatusWhatsApp({
           phone: order.customerPhone,
           customerName: order.customerName,
           orderId: order.orderId,
@@ -208,6 +208,15 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           trackingUrl: trackingUrl || order.trackingUrl,
           shippingProvider: shippingProvider || order.shippingProvider,
           notes: notes || order.notes,
+        })
+        console.log("[v0] WhatsApp order status notification", {
+          orderId: order.orderId,
+          action: "order_status_update",
+          orderStatus,
+          ok: whatsappResult.ok,
+          ...(whatsappResult.ok
+            ? { messageId: whatsappResult.messageId }
+            : { reason: whatsappResult.reason, statusCode: whatsappResult.status }),
         })
       } catch (emailError) {
         console.error(`[v0] Error sending status update email: ${emailError}`)

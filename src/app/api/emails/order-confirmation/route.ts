@@ -56,11 +56,19 @@ export async function POST(request: Request) {
       shippingAddress: order.shippingAddress,
     })
 
-    await sendOrderConfirmationWhatsApp({
+    const whatsappResult = await sendOrderConfirmationWhatsApp({
       phone: order.customerPhone,
       customerName: order.customerName,
       orderId: order.orderId,
       totalAmount: order.totalAmount,
+    })
+    console.log("[v0] WhatsApp order confirmation notification", {
+      orderId: order.orderId,
+      action: "order_confirmation",
+      ok: whatsappResult.ok,
+      ...(whatsappResult.ok
+        ? { messageId: whatsappResult.messageId }
+        : { reason: whatsappResult.reason, statusCode: whatsappResult.status }),
     })
 
     if (emailSent) {
