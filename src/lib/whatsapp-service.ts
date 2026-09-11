@@ -1,6 +1,6 @@
 import "server-only"
 
-const DEFAULT_API_VERSION = "v26.0"
+const DEFAULT_API_VERSION = "v23.0"
 const DEFAULT_TEMPLATE_LANGUAGE = "en"
 const REQUEST_TIMEOUT_MS = 8000
 
@@ -83,16 +83,24 @@ export async function sendWhatsAppTemplate(
   template: WhatsAppTemplate,
 ): Promise<WhatsAppDeliveryResult> {
   const recipient = normalizePhone(phone)
+  const logContext = {
+    template: template.name,
+    language: template.language || DEFAULT_TEMPLATE_LANGUAGE,
+    parameterCount: template.parameters?.length || 0,
+  }
+  console.log("[v0] WhatsApp delivery attempt", logContext)
   const token = normalizeAccessToken(process.env.META_WHATSAPP_ACCESS_TOKEN || process.env.CURL_AUTH_HEADER)
   const phoneNumberId = process.env.META_WHATSAPP_PHONE_NUMBER_ID?.trim()
   const recipientLast4 = recipient?.slice(-4)
 
   if (!recipient) {
-    console.error("WhatsApp delivery skipped: invalid recipient phone number")
+    console.error("[v0] WhatsApp delivery failed", { ...logContext, reason: "invalid_recipient" })
     return { ok: false, reason: "invalid_recipient" }
   }
   if (!token || !phoneNumberId) {
-    console.error(" WhatsApp delivery skipped: missing Meta configuration", {
+    console.error("[v0] WhatsApp delivery failed", {
+      ...logContext,
+      reason: "missing_configuration",
       hasAccessToken: Boolean(token),
       hasPhoneNumberId: Boolean(phoneNumberId),
     })
@@ -124,8 +132,17 @@ export async function sendWhatsAppTemplate(
 
     if (!response.ok) {
       const errorBody = await response.text()
-      console.error("[WhatsApp template failed", {
+      let metaErrorCode: string | undefined
+      try {
+        metaErrorCode = JSON.parse(errorBody)?.error?.code?.toString()
+      } catch {
+        metaErrorCode = undefined
+      }
+      console.error("[v0] WhatsApp delivery failed", {
+        ...logContext,
+        reason: "meta_error",
         status: response.status,
+        metaErrorCode,
         recipientLast4: recipient.slice(-4),
         error: errorBody.slice(0, 500),
       })
@@ -134,11 +151,12 @@ export async function sendWhatsAppTemplate(
 
     const responseBody = (await response.json().catch(() => null)) as { messages?: Array<{ id?: string }> } | null
     const messageId = responseBody?.messages?.[0]?.id
-    console.log("[ WhatsApp message accepted", { recipientLast4: recipient.slice(-4), messageId })
+    console.log("[v0] WhatsApp delivery accepted", { ...logContext, recipientLast4: recipient.slice(-4), messageId })
     return { ok: true, messageId, recipientLast4: recipient.slice(-4) }
   } catch (error) {
     const reason = error instanceof DOMException && error.name === "AbortError" ? "timeout" : "request_failed"
-    console.error("WhatsApp request failed", {
+    console.error("[v0] WhatsApp delivery failed", {
+      ...logContext,
       recipientLast4: recipient.slice(-4),
       reason,
       error: error instanceof Error ? error.message : String(error),
