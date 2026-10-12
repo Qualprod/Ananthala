@@ -88,17 +88,17 @@ export async function sendWhatsAppTemplate(
     language: template.language || DEFAULT_TEMPLATE_LANGUAGE,
     parameterCount: template.parameters?.length || 0,
   }
-  console.log("[v0] WhatsApp delivery attempt", logContext)
+  console.log("WhatsApp delivery attempt", logContext)
   const token = normalizeAccessToken(process.env.META_WHATSAPP_ACCESS_TOKEN || process.env.CURL_AUTH_HEADER)
   const phoneNumberId = process.env.META_WHATSAPP_PHONE_NUMBER_ID?.trim()
   const recipientLast4 = recipient?.slice(-4)
 
   if (!recipient) {
-    console.error("[v0] WhatsApp delivery failed", { ...logContext, reason: "invalid_recipient" })
+    console.error("WhatsApp delivery failed", { ...logContext, reason: "invalid_recipient" })
     return { ok: false, reason: "invalid_recipient" }
   }
   if (!token || !phoneNumberId) {
-    console.error("[v0] WhatsApp delivery failed", {
+    console.error("WhatsApp delivery failed", {
       ...logContext,
       reason: "missing_configuration",
       hasAccessToken: Boolean(token),
@@ -138,7 +138,7 @@ export async function sendWhatsAppTemplate(
       } catch {
         metaErrorCode = undefined
       }
-      console.error("[v0] WhatsApp delivery failed", {
+      console.error("WhatsApp delivery failed", {
         ...logContext,
         reason: "meta_error",
         status: response.status,
@@ -151,11 +151,11 @@ export async function sendWhatsAppTemplate(
 
     const responseBody = (await response.json().catch(() => null)) as { messages?: Array<{ id?: string }> } | null
     const messageId = responseBody?.messages?.[0]?.id
-    console.log("[v0] WhatsApp delivery accepted", { ...logContext, recipientLast4: recipient.slice(-4), messageId })
+    console.log("WhatsApp delivery accepted", { ...logContext, recipientLast4: recipient.slice(-4), messageId })
     return { ok: true, messageId, recipientLast4: recipient.slice(-4) }
   } catch (error) {
     const reason = error instanceof DOMException && error.name === "AbortError" ? "timeout" : "request_failed"
-    console.error("[v0] WhatsApp delivery failed", {
+    console.error("WhatsApp delivery failed", {
       ...logContext,
       recipientLast4: recipient.slice(-4),
       reason,
