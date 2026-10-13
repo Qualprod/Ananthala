@@ -11,7 +11,7 @@ export const CONTACT_CONFIG = {
   // WhatsApp number (without +, with country code)
   whatsapp: "9071799966",
   // Instagram handle or profile URL
-  instagram: "https://www.instagram.com/Ananthala_official/",
+  instagram: "https://www.instagram.com/ananthala_official/",
 } as const
 
 // Helper functions for contact links
