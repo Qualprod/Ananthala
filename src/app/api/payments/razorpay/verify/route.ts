@@ -7,6 +7,7 @@ import connectDB from "@/lib/mongodb"
 import Order from "@/models/order"
 import Coupon from "@/models/Coupons"
 import { sendOrderConfirmationEmail } from "@/lib/email-service"
+import { sendOrderConfirmationWhatsApp } from "@/lib/whatsapp-service"
 import { withCountryCode } from "@/lib/phone"
 
 export const runtime = "nodejs"
@@ -304,10 +305,34 @@ shippingAddress: {
       )
       if (!updated) {
         console.warn(
-          `[v0] Coupon increment failed for code ${couponCodes[0]} after order ${order.orderId}`,
+          ` Coupon increment failed for code ${couponCodes[0]} after order ${order.orderId}`,
         )
       }
     }
+
+
+
+
+// Send WhatsApp confirmation from the server-side payment verification flow.
+    // This is the authoritative order-creation path in production; the separate
+    // email confirmation route is only used for authenticated resends.
+    try {
+      const whatsappResult = await sendOrderConfirmationWhatsApp({
+        phone: order.customerPhone,
+        customerName: order.customerName,
+        orderId: order.orderId,
+        totalAmount: order.totalAmount,
+      })
+      console.log(`[v0] WhatsApp order confirmation ${whatsappResult.ok ? "accepted" : "failed"} for order ${order.orderId}`,
+        whatsappResult.ok
+          ? { messageId: whatsappResult.messageId }
+          : { reason: whatsappResult.reason, statusCode: whatsappResult.status },
+      )
+    } catch (whatsappError) {
+      console.error(`[v0] Error sending WhatsApp order confirmation: ${whatsappError}`)
+      // Don't fail the paid order if WhatsApp delivery fails.
+    }
+
 
     // Send order confirmation email
     try {
@@ -323,6 +348,12 @@ shippingAddress: {
         shippingAddress: order.shippingAddress,
       })
       console.log(`[v0] Order confirmation email ${emailSent ? "sent" : "failed to send"} for order ${order.orderId}`)
+      await sendOrderConfirmationWhatsApp({
+        phone: order.customerPhone,
+        customerName: order.customerName,
+        orderId: order.orderId,
+        totalAmount: order.totalAmount,
+      })
     } catch (emailError) {
       console.error(`[v0] Error sending order confirmation email: ${emailError}`)
       // Don't fail the order creation if email fails - it's not critical
