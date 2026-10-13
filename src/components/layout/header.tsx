@@ -166,7 +166,7 @@ export function Header() {
             <div className="absolute left-1/2 transform -translate-x-1/2">
               <Link href="/" className="flex items-center group overflow-hidden h-20">
                 <img
-                  src="/logo.png"
+                  src="/logoananthala.png"
                   alt="Ananthala Logo"
                   className="h-20 md:h-28 w-auto object-contain"
                 />
@@ -258,7 +258,7 @@ export function Header() {
                   className="inline-flex items-center justify-center"
                 >
                   <img
-                    src="/logo.png"
+                    src="/logoananthala.png"
                     alt="Ananthala"
                     className="h-28 w-auto max-w-full object-contain"
                   />
