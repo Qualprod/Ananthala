@@ -4,7 +4,6 @@ import { verifyToken } from "@/lib/jwt"
 import connectDB from "@/lib/mongodb"
 import Order from "@/models/order"
 import { sendOrderConfirmationEmail } from "@/lib/email-service"
-import { sendOrderConfirmationWhatsApp } from "@/lib/whatsapp-service"
 
 export const runtime = "nodejs"
 
@@ -54,21 +53,6 @@ export async function POST(request: Request) {
       shippingCost: order.shippingCost,
       totalAmount: order.totalAmount,
       shippingAddress: order.shippingAddress,
-    })
-
-    const whatsappResult = await sendOrderConfirmationWhatsApp({
-      phone: order.customerPhone,
-      customerName: order.customerName,
-      orderId: order.orderId,
-      totalAmount: order.totalAmount,
-    })
-    console.log("WhatsApp order confirmation notification", {
-      orderId: order.orderId,
-      action: "order_confirmation",
-      ok: whatsappResult.ok,
-      ...(whatsappResult.ok
-        ? { messageId: whatsappResult.messageId }
-        : { reason: whatsappResult.reason, statusCode: whatsappResult.status }),
     })
 
     if (emailSent) {
