@@ -123,6 +123,13 @@ const {
     // Convert userId string to MongoDB ObjectId
     const customerId = new mongoose.Types.ObjectId(decoded.userId)
 
+    // Razorpay can retry the verification request after a successful payment.
+    // Reuse the existing order so confirmation messages are sent only once.
+    const existingOrder = await Order.findOne({ razorpayPaymentId: razorpay_payment_id }).select("orderId")
+    if (existingOrder) {
+      return NextResponse.json({ success: true, orderId: existingOrder.orderId, duplicate: true }, { status: 200 })
+    }
+
     const orderId = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`
     const orderItems = Array.isArray(items)
       ? (items as CartItemPayload[]).map((item) => {
