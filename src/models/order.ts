@@ -157,7 +157,11 @@ shippingAddress: {
       default: "razorpay",
     },
     razorpayOrderId: String,
-    razorpayPaymentId: String,
+    razorpayPaymentId: {
+      type: String,
+      sparse: true,
+      unique: true,
+    },
     razorpaySignature: String,
   },
   { timestamps: true },
