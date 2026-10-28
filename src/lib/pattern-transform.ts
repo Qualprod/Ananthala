@@ -180,7 +180,7 @@ export async function applyPatternTransform(
           resolve(canvas.toDataURL("image/png"))
         }
       } catch (error) {
-        console.error("[v0] Pattern transform failed:", error)
+        console.error("Pattern transform failed:", error)
         resolve(imageUrl)
       }
     }
