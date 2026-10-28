@@ -70,15 +70,15 @@ async function sendViaMSG91(phone: string, message: string): Promise<boolean> {
     const senderId = process.env.MSG91_SENDER_ID!
     const templateId = process.env.MSG91_DLT_TEMPLATE_ID!
 
-    console.log(`[v0] === SENDING SMS VIA MSG91 ===`)
-    console.log(`[v0] Phone: ${normalizedPhone}`)
-    console.log(`[v0] SenderID: ${senderId}`)
-    console.log(`[v0] AuthKey (first 10 chars): ${authKey.substring(0, 10)}...`)
+    console.log(` === SENDING SMS VIA MSG91 ===`)
+    console.log(` Phone: ${normalizedPhone}`)
+    console.log(` SenderID: ${senderId}`)
+    console.log(` AuthKey (first 10 chars): ${authKey.substring(0, 10)}...`)
 
     // Build exact MSG91 API URL format: authkey=XXX&sender=YYY&mobiles=91XXXXXXXXXX&route=4&DLT_TE_ID=ZZZ&message=MSG
     const url = `https://api.msg91.com/api/sendhttp.php?authkey=${authKey}&sender=${senderId}&mobiles=${normalizedPhone}&route=4&DLT_TE_ID=${templateId}&message=${encodeURIComponent(message)}`
 
-    console.log(`[https://api.msg91.com/api/sendhttp.php?authkey=***&sender=${senderId}&mobiles=${normalizedPhone}&route=4&DLT_TE_ID=${templateId}&message=...`)
+    console.log(` Full URL (with authkey hidden): https://api.msg91.com/api/sendhttp.php?authkey=***&sender=${senderId}&mobiles=${normalizedPhone}&route=4&DLT_TE_ID=${templateId}&message=...`)
 
     const response = await fetch(url, {
       method: "GET",
@@ -90,8 +90,8 @@ async function sendViaMSG91(phone: string, message: string): Promise<boolean> {
     const responseText = await response.text()
     const trimmedResponse = responseText.trim()
 
-    console.log(`[v0] MSG91 Response Status: ${response.status}`)
-    console.log(`[v0] MSG91 Response Body: "${trimmedResponse}"`)
+    console.log(` MSG91 Response Status: ${response.status}`)
+    console.log(` MSG91 Response Body: "${trimmedResponse}"`)
 
     // Check for numeric success codes (401 or 0 = Success)
     if (trimmedResponse === "401" || trimmedResponse === "0") {
@@ -143,7 +143,7 @@ async function sendViaMSG91(phone: string, message: string): Promise<boolean> {
     }
 
     // Unclear response with 200 status - assume success
-    console.warn(`[v0] Unclear response but status 200: ${trimmedResponse}`)
+    console.warn(`Unclear response but status 200: ${trimmedResponse}`)
     return true
   } catch (error) {
     console.error("[SMS_ERROR]", error)
@@ -156,7 +156,7 @@ async function sendViaMSG91(phone: string, message: string): Promise<boolean> {
  */
 export async function sendMsg91OTP(phone: string, otp: string): Promise<boolean> {
   const message = `Your OTP for verification is ${otp}. Please do not share this OTP with anyone - Ananthala.`
-  console.log(`[v0] OTP: ${otp}`)
+  console.log(`OTP: ${otp}`)
   return sendViaMSG91(phone, message)
 }
 
