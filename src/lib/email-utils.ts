@@ -21,7 +21,7 @@ export function getEmbeddedLogoDataUri(): string {
       return cachedLogoBase64
     }
   } catch (error) {
-    console.warn("[v0] Error reading logo file, falling back to URL:", error)
+    console.warn("Error reading logo file, falling back to URL:", error)
   }
 
   
