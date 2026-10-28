@@ -19,7 +19,7 @@ export function getBase64Logo(): string {
     cachedBase64Logo = `data:image/png;base64,${base64String}`
     return cachedBase64Logo
   } catch (error) {
-    console.error('[v0] Failed to load base64 logo:', error)
+    console.error('Failed to load base64 logo:', error)
     // Return a transparent PNG as fallback
     return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
   }
