@@ -6,7 +6,7 @@ import Link from "next/link"
 import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
 import Image from "next/image"
-import { IndianRupee, ShoppingCart, ChevronRight, MapPin, Check, AlertCircle, Building2 } from "lucide-react"
+import { IndianRupee, ShoppingCart, ChevronRight, MapPin, Check, AlertCircle, Building2, ShieldCheck, Package, CreditCard } from "lucide-react"
 import { useCart } from "@/contexts/cart-context"
 import { getAllStates, getCitiesForState } from "@/lib/indian-states-cities"
 import { useToast } from "@/hooks/use-toast"
@@ -50,10 +50,117 @@ declare global {
   }
 }
 
+const ORDER_PROCESSING_STEPS = [
+  { icon: CreditCard, label: "Payment received" },
+  { icon: ShieldCheck, label: "Verifying payment securely" },
+  { icon: Package, label: "Confirming your order" },
+]
+
+/**
+ * Full-screen overlay shown from the moment Razorpay reports a successful payment
+ * until the order-success page has loaded. It also hides the brief "cart empty"
+ * state that would otherwise flash after the cart is cleared.
+ */
+function OrderProcessingOverlay() {
+  const [activeStep, setActiveStep] = useState(0)
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setActiveStep((prev) => (prev < ORDER_PROCESSING_STEPS.length - 1 ? prev + 1 : prev))
+    }, 1400)
+
+    // Prevent background scrolling while the overlay is visible
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+
+    return () => {
+      window.clearInterval(interval)
+      document.body.style.overflow = previousOverflow
+    }
+  }, [])
+
+  return (
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#F5F1ED]/95 backdrop-blur-sm px-4"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-[#E5D5C5] px-8 py-10 text-center">
+        {/* Animated spinner with icon */}
+        <div className="relative mx-auto mb-8 h-28 w-28">
+          <div className="absolute inset-0 rounded-full border-[6px] border-[#EED9C4]" />
+          <div className="absolute inset-0 rounded-full border-[6px] border-transparent border-t-[#6D4530] border-r-[#8B5A3C] animate-spin" />
+          <div
+            className="absolute inset-3 rounded-full border-4 border-transparent border-b-[#D9BB9B] animate-spin"
+            style={{ animationDirection: "reverse", animationDuration: "1.6s" }}
+          />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#F5F1ED] animate-pulse">
+              <ShoppingCart className="h-7 w-7 text-[#6D4530]" />
+            </div>
+          </div>
+        </div>
+
+        <h2 className="text-2xl md:text-3xl font-serif text-[#6D4530] mb-2">Placing your order</h2>
+        <p className="text-sm md:text-base text-[#8B5A3C] mb-8">
+          Please don&apos;t close or refresh this page. This will only take a moment.
+        </p>
+
+        {/* Progress steps */}
+        <ul className="space-y-3 text-left">
+          {ORDER_PROCESSING_STEPS.map((step, index) => {
+            const isDone = index < activeStep
+            const isActive = index === activeStep
+            const StepIcon = step.icon
+            return (
+              <li
+                key={step.label}
+                className={`flex items-center gap-3 rounded-lg px-4 py-3 transition-all duration-500 ${
+                  isActive
+                    ? "bg-[#F5F1ED] border border-[#D9BB9B]"
+                    : isDone
+                      ? "bg-white border border-[#E5D5C5]"
+                      : "bg-white border border-transparent opacity-50"
+                }`}
+              >
+                <span
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors duration-500 ${
+                    isDone ? "bg-green-600 text-white" : isActive ? "bg-[#6D4530] text-white" : "bg-[#EED9C4] text-[#6D4530]"
+                  }`}
+                >
+                  {isDone ? <Check className="h-4 w-4" /> : <StepIcon className="h-4 w-4" />}
+                </span>
+                <span className={`text-sm md:text-base ${isActive ? "font-semibold text-[#6D4530]" : "text-[#8B5A3C]"}`}>
+                  {step.label}
+                </span>
+                {isActive && (
+                  <span className="ml-auto flex gap-1" aria-hidden="true">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#6D4530] animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#6D4530] animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#6D4530] animate-bounce" style={{ animationDelay: "300ms" }} />
+                  </span>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+
+        <p className="mt-8 flex items-center justify-center gap-2 text-xs text-[#B8A396]">
+          <ShieldCheck className="h-4 w-4" />
+          Secured by Razorpay
+        </p>
+      </div>
+    </div>
+  )
+}
+
 export default function CheckoutPage() {
   const router = useRouter()
   const { cartItems, clearCart, appliedCoupons, setAppliedCoupon, clearCoupon } = useCart()
   const [isProcessing, setIsProcessing] = useState(false)
+  // True from successful Razorpay payment until we navigate to the success page
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false)
   const [isAuthChecking, setIsAuthChecking] = useState(true)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [allStates, setAllStates] = useState<string[]>([])
@@ -173,6 +280,8 @@ useEffect(() => {
     }
 
     ensureAuthenticated()
+    // Prefetch the success page so the redirect after payment is instant
+    router.prefetch("/checkout/success")
   }, [router])
 
   useEffect(() => {
@@ -614,6 +723,8 @@ const handleSubmit = async (e: React.FormEvent) => {
           zipCode: formData.zipCode,
         },
         handler: async (response: any) => {
+          // Payment succeeded in Razorpay — show the order-processing overlay immediately
+          setIsPlacingOrder(true)
           try {
             // Save new address if user selected that option
             if (useNewAddress && saveNewAddress) {
@@ -717,10 +828,13 @@ shippingAddress: {
               throw new Error(verifyData?.message || "Payment verification failed.")
             }
 
-            clearCart()
             const orderId = verifyData.orderId
-            router.push(`/checkout/success?orderId=${orderId}`)
+            // Navigate first; the overlay stays visible (isPlacingOrder) so the
+            // "cart empty" view never flashes while the cart is being cleared.
+            router.push(`/checkout/success?orderId=${encodeURIComponent(orderId)}`)
+            clearCart()
           } catch (error: any) {
+            setIsPlacingOrder(false)
             setErrorMessage(error?.message || "Payment verification failed.")
             setIsProcessing(false)
           }
@@ -764,6 +878,16 @@ shippingAddress: {
 
   if (!isAuthenticated) {
     return null
+  }
+
+  // After successful payment: keep showing the processing screen until the
+  // success page takes over (prevents the "Your Cart is Empty" flash).
+  if (isPlacingOrder) {
+    return (
+      <div className="min-h-screen bg-[#F5F1ED]">
+        <OrderProcessingOverlay />
+      </div>
+    )
   }
 
   if (cartItems.length === 0) {
