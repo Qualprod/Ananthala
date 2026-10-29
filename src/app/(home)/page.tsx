@@ -12,6 +12,51 @@ import { useRouter } from "next/navigation"
 import { isHomepageCardVideoUrl } from "@/lib/homepage-card-media"
 import { HOME_SHOP_PATH, isHomeShopHash, scrollToHomeShopSection } from "@/lib/home-shop-anchor"
 
+// Session cache key for homepage cards (instant render on repeat visits)
+const HOMEPAGE_CARDS_CACHE_KEY = "ananthala_homepage_cards_v1"
+
+/**
+ * Renders children only when the placeholder scrolls near the viewport.
+ * Used to defer below-the-fold sections (and their network requests / videos)
+ * so the hero video and above-the-fold content get full bandwidth first.
+ */
+function LazyMountOnVisible({
+  children,
+  minHeight = 400,
+  rootMargin = "400px 0px",
+}: {
+  children: React.ReactNode
+  minHeight?: number
+  rootMargin?: string
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [isVisible, setIsVisible] = useState(false)
+
+  useEffect(() => {
+    if (isVisible) return
+    const node = ref.current
+    if (!node) return
+    if (typeof IntersectionObserver === "undefined") {
+      setIsVisible(true)
+      return
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setIsVisible(true)
+          observer.disconnect()
+        }
+      },
+      { rootMargin },
+    )
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [isVisible, rootMargin])
+
+  if (isVisible) return <>{children}</>
+  return <div ref={ref} style={{ minHeight }} aria-hidden="true" />
+}
+
 // Categories data
 const categories = [
   {
@@ -135,13 +180,15 @@ function HomepageRangeProductCard({
             muted
             loop
             playsInline
-            preload={isTouchDevice ? "auto" : "metadata"}
+            preload="metadata"
             aria-hidden
           />
         ) : (
           <img
             src={backgroundImage}
             alt={card.name}
+            loading="lazy"
+            decoding="async"
             className={`absolute inset-0 w-full h-full transition-transform duration-500 ${
               isPlaceholder ? "object-contain bg-white" : "object-cover group-hover:scale-105"
             }`}
@@ -175,7 +222,31 @@ export default function Home() {
   const [isMuted, setIsMuted] = useState(true)
   const [currentSlide, setCurrentSlide] = useState(0)
   const [homepageCards, setHomepageCards] = useState<HomepageCard[]>([])
+  const [cardsLoading, setCardsLoading] = useState(true)
   const videoRef = useRef<HTMLVideoElement>(null)
+
+  // React does not render the `muted` attribute in server HTML, so browsers can
+  // block autoplay until hydration. Force muted + play as soon as we mount so the
+  // hero video starts immediately and reliably (including iOS/Safari).
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+    video.muted = true
+    video.defaultMuted = true
+    video.setAttribute("muted", "")
+    const tryPlay = () => {
+      void video.play().catch(() => {
+        // Autoplay can still be blocked (e.g. low-power mode); poster/background stays visible.
+      })
+    }
+    if (video.readyState >= 2) {
+      tryPlay()
+    } else {
+      video.addEventListener("loadeddata", tryPlay, { once: true })
+      tryPlay()
+    }
+    return () => video.removeEventListener("loadeddata", tryPlay)
+  }, [])
 
   const toggleMute = () => {
     if (videoRef.current) {
@@ -206,6 +277,22 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
+    // Show cached cards instantly (repeat visits in the same session), then refresh in background
+    let hasCachedCards = false
+    try {
+      const cached = window.sessionStorage.getItem(HOMEPAGE_CARDS_CACHE_KEY)
+      if (cached) {
+        const parsed = JSON.parse(cached)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setHomepageCards(parsed)
+          setCardsLoading(false)
+          hasCachedCards = true
+        }
+      }
+    } catch {
+      // Storage unavailable (private mode etc.) — fall back to network only
+    }
+
     const fetchHomepageCards = async () => {
       try {
         const response = await fetch("/api/admin/homepage-cards")
@@ -223,10 +310,17 @@ export default function Home() {
             })
 
           setHomepageCards(activeCards)
+          try {
+            window.sessionStorage.setItem(HOMEPAGE_CARDS_CACHE_KEY, JSON.stringify(activeCards))
+          } catch {
+            // ignore storage errors
+          }
         }
       } catch (error) {
-        console.error("[v0] Error fetching homepage cards:", error)
-        setHomepageCards([])
+        console.error("Error fetching homepage cards:", error)
+        if (!hasCachedCards) setHomepageCards([])
+      } finally {
+        setCardsLoading(false)
       }
     }
 
@@ -277,8 +371,16 @@ export default function Home() {
         {/* Hero Section */}
         <section className="relative min-h-[720px] md:min-h-[840px] flex items-end">
           {/* Background Video */}
-          <div className="absolute inset-0 z-0">
-            <video ref={videoRef} autoPlay loop muted playsInline className="w-full h-full object-cover">
+          <div className="absolute inset-0 z-0 bg-[#3B2A20]">
+            <video
+              ref={videoRef}
+              autoPlay
+              loop
+              muted
+              playsInline
+              preload="auto"
+              className="w-full h-full object-cover"
+            >
               <source src="/herosection.mp4" type="video/mp4" />
             </video>
             <div className="absolute inset-0 bg-black/20" />
@@ -344,9 +446,13 @@ export default function Home() {
                   pointerEvents: currentSlide === index ? "auto" : "none",
                 }}
               >
-                <img
+                {/* next/image serves resized WebP/AVIF instead of the full-size PNG and lazy-loads it */}
+                <Image
                   src={category.image || "/placeholder.svg"}
                   alt={category.title}
+                  fill
+                  sizes="100vw"
+                  quality={75}
                   className={`w-full h-full transition-transform duration-7000 ease-out ${
                     category.image ? "object-cover object-top" : "object-contain bg-white"
                   } ${
@@ -436,9 +542,17 @@ export default function Home() {
               </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {homepageCards.map((card) => (
-                <HomepageRangeProductCard key={card._id || card.name} card={card} onNavigate={onNavigate} />
-              ))}
+              {cardsLoading && homepageCards.length === 0
+                ? Array.from({ length: 4 }).map((_, index) => (
+                    <div
+                      key={`card-skeleton-${index}`}
+                      className="w-full aspect-[7/10] bg-[#F5F1ED] animate-pulse"
+                      aria-hidden="true"
+                    />
+                  ))
+                : homepageCards.map((card) => (
+                    <HomepageRangeProductCard key={card._id || card.name} card={card} onNavigate={onNavigate} />
+                  ))}
             </div>
           </div>
         </section>
@@ -467,15 +581,24 @@ export default function Home() {
               </div>
               <div className="order-1 lg:order-2">
                 <div className="relative aspect-[4/3] overflow-hidden max-w-xl mx-auto lg:ml-auto">
-                  <Image src="/Bullock Cart Theme.png" alt="Comfort" fill className="w-full h-full object-cover" />
+                  <Image
+                    src="/Bullock Cart Theme.png"
+                    alt="Comfort"
+                    fill
+                    sizes="(min-width: 1024px) 576px, 100vw"
+                    quality={75}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Customer Testimonials - Real Videos from Database */}
-        <CustomerTestimonialVideos />
+        {/* Customer Testimonials - Real Videos from Database (mounted only when scrolled near) */}
+        <LazyMountOnVisible minHeight={400}>
+          <CustomerTestimonialVideos />
+        </LazyMountOnVisible>
       </main>
       <Footer />
     </div>
