@@ -7,7 +7,7 @@ export function ClarityAnalytics() {
     <Script
       id="clarity-analytics"
       type="text/javascript"
-      strategy="afterInteractive"
+      strategy="lazyOnload"
       dangerouslySetInnerHTML={{
         __html: `
           (function(c,l,a,r,i,t,y){
