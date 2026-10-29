@@ -22,6 +22,7 @@ import {
   Palette,
   Menu as MenuIcon,
   CreditCard,
+  MessageCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -73,6 +74,11 @@ const menuItems = [
     label: "Order Management",
     href: "/admin/orders",
     icon: ShoppingCart,
+  },
+  {
+    label: "WhatsApp Inbox",
+    href: "/admin/whatsapp",
+    icon: MessageCircle,
   },
   {
     label: "Payments",
