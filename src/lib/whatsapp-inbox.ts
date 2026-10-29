@@ -254,7 +254,9 @@ async function ingestInboundMessage(message: any, contactNames: Map<string, stri
   const waId = message?.from ? String(message.from) : null
   if (!wamid || !waId) return
 
-  const timestamp = new Date(Number(message.timestamp || Date.now() / 1000) * 1000)
+  // Never trust a timestamp from the future (it would stretch the 24h reply window).
+  const sentAt = Number(message.timestamp) * 1000
+  const timestamp = new Date(Number.isFinite(sentAt) && sentAt > 0 ? Math.min(sentAt, Date.now()) : Date.now())
 
   // Reactions update the message they react to instead of becoming a new bubble.
   if (message.type === "reaction") {
