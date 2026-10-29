@@ -1,4 +1,8 @@
 import { NextResponse } from "next/server"
+import { ingestWebhookPayload, verifyWebhookSignature } from "@/lib/whatsapp-inbox"
+
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
 
 const MAX_BODY_BYTES = 256_000
 
@@ -68,11 +72,32 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Payload too large" }, { status: 413 })
   }
 
+  const rawBody = await request.text()
+  if (rawBody.length > MAX_BODY_BYTES) {
+    return NextResponse.json({ error: "Payload too large" }, { status: 413 })
+  }
+
+  if (!verifyWebhookSignature(rawBody, request.headers.get("x-hub-signature-256"))) {
+    console.warn("WhatsApp webhook rejected: invalid X-Hub-Signature-256")
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 })
+  }
+
+  let payload: unknown
   try {
-    const payload = await request.json()
-    console.log("WhatsApp webhook event", safeEventSummary(payload))
-    return NextResponse.json({ received: true })
+    payload = JSON.parse(rawBody)
   } catch {
     return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 })
   }
+
+  console.log("WhatsApp webhook event", safeEventSummary(payload))
+
+  // Store messages + delivery statuses for the admin inbox. Errors are logged but never
+  // returned to Meta, otherwise Meta keeps retrying the same event.
+  try {
+    await ingestWebhookPayload(payload)
+  } catch (error) {
+    console.error("WhatsApp webhook ingestion failed", error instanceof Error ? error.message : String(error))
+  }
+
+  return NextResponse.json({ received: true })
 }
