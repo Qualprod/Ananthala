@@ -124,8 +124,12 @@ export function CustomerTestimonialVideos() {
               >
                 {/* Video Thumbnail */}
                 <div className="relative aspect-video bg-[#E5D5C5] flex items-center justify-center overflow-hidden">
+                  {/* Thumbnail only: load metadata + first frame instead of the whole video file */}
                   <video
-                    src={video.blobUrl}
+                    src={video.blobUrl ? `${video.blobUrl}#t=0.1` : undefined}
+                    preload="metadata"
+                    muted
+                    playsInline
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                   {/* Play Button Overlay */}
