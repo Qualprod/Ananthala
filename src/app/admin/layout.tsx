@@ -75,11 +75,11 @@ const menuItems = [
     href: "/admin/orders",
     icon: ShoppingCart,
   },
-  {
-    label: "WhatsApp Inbox",
-    href: "/admin/whatsapp",
-    icon: MessageCircle,
-  },
+  // {
+//   label: "WhatsApp Inbox",
+//   href: "/admin/whatsapp",
+//   icon: MessageCircle,
+// },
   {
     label: "Payments",
     href: "/admin/payments",
