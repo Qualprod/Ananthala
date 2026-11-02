@@ -172,19 +172,6 @@ export default function AgentDashboard() {
     return colors[index]
   }
 
-  if (isVerifying) {
-    return (
-      <div className="min-h-screen bg-[#F5F1ED] flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 rounded-full bg-white shadow-lg border-2 border-[#E5D5C5] flex items-center justify-center mx-auto mb-4 animate-pulse">
-            <HelpCircle className="w-8 h-8 text-[#8B5A3C]" />
-          </div>
-          <p className="text-[#8B5A3C] font-medium">Verifying agent access...</p>
-        </div>
-      </div>
-    )
-  }
-
   const statCards = useMemo(
     () => [
       {
@@ -218,6 +205,19 @@ export default function AgentDashboard() {
     ],
     [couponStats.totalCoupons, couponStats.activeCoupons, salesSummary.revenue, salesSummary.orderCount],
   )
+
+  if (isVerifying) {
+    return (
+      <div className="min-h-screen bg-[#F5F1ED] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 rounded-full bg-white shadow-lg border-2 border-[#E5D5C5] flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <HelpCircle className="w-8 h-8 text-[#8B5A3C]" />
+          </div>
+          <p className="text-[#8B5A3C] font-medium">Verifying agent access...</p>
+        </div>
+      </div>
+    )
+  }
 
   const COLORS = ["#8B5A3C", "#6D4530", "#A67C52", "#C89968", "#D4A574"]
 
